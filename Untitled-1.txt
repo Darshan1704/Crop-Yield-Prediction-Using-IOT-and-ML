@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>ChatGPT-Like Text Generation</title>
+		<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+
+		<style>
+			.regenerateIcon {
+				cursor: pointer;
+				display: inline-block;
+				margin-left: 10px;
+				font-size: 20px;
+				/* Adjust size as needed */
+			}
+
+		
+			#chatContainer {
+				background-color: #fff;
+				border-radius: 8px;
+				overflow: hidden;
+				width: 100%;
+				max-width: 800px;
+				margin: auto;
+				box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+			}
+
+
+
+			#chatHeader {
+				width: 100%;
+				padding: 10px;
+				margin-bottom: 20px;
+				border-radius: 8px;
+				border: none;
+				color: white;
+				text-align: center;
+				font-size: 16px;
+
+				cursor: pointer;
+				background-image: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+				transition: all 0.3s ease;
+				text-decoration: none;
+				/* Remove underline from download link */
+				display: inline-block;
+				/* Needed for anchor to behave like a button */
+				text-align: center;
+				/* Ensure text is centered in download link */
+			}
+
+			#chatBody {
+				padding: 20px;
+				max-height: 300px;
+				overflow-y: auto;
+			}
+
+			.messageContainer {
+				display: flex;
+				justify-content: flex-end;
+				margin-bottom: 10px;
+			}
+
+			.message {
+				background-color: #e2f0cb;
+				padding: 10px;
+				border-radius: 5px;
+				max-width: 70%;
+				word-wrap: break-word;
+			}
+
+			#prompt {
+				width: calc(100% - 40px - 20px);
+				margin: 10px 20px;
+				padding: 12px;
+				border-radius: 5px;
+				border: 1px solid #ccc;
+			}
+
+			button {
+				width: 95%;
+				padding: 10px;
+				margin-bottom: 20px;
+				border-radius: 8px;
+				border: none;
+				color: white;
+				text-align: center;
+				font-size: 16px;
+				margin-left: 20px;
+				cursor: pointer;
+				background-image: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+				transition: all 0.3s ease;
+				text-decoration: none;
+				/* Remove underline from download link */
+				display: inline-block;
+				/* Needed for anchor to behave like a button */
+				text-align: center;
+				/* Ensure text is centered in download link */
+			}
+
+			button:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+			}
+
+			#copyButton {
+				background-color: #007bff;
+			}
+
+			#progressOverlay {
+				display: none;
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: rgba(0, 0, 0, 0.5);
+				z-index: 1000;
+			}
+
+			#progressOverlay > div {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				color: white;
+				font-size: 20px;
+			}
+
+			/* Add styles for formatted text */
+			.formatted-text {
+				white-space: pre-wrap;
+				/* Keeps white space and line breaks */
+			}
+
+			.formatted-text a {
+				color: #007bff;
+				text-decoration: none;
+			}
+
+			.formatted-text a:hover {
+				text-decoration: underline;
+			}
+
+			/* Dropdown Styles */
+			#typeSelection,
+			#languageSelection {
+				width: calc(50% - 25px);
+				/* Adjust width to fit side by side with some space */
+				padding: 10px;
+				margin: 10px;
+				border-radius: 5px;
+				border: 1px solid #ccc;
+				background-color: #fff;
+				font-family: 'Arial', sans-serif;
+				font-size: 16px;
+				box-sizing: border-box;
+				/* Ensure padding and border are included in width */
+				display: inline-block;
+				/* Display side by side */
+				cursor: pointer;
+			}
+
+			#typeSelection:disabled,
+			#languageSelection:disabled {
+				background-color: #e9ecef;
+				cursor: not-allowed;
+			}
+
+			/* Adjust margin for the prompt to align with the new dropdowns */
+			#prompt {
+				margin: 0 10px 10px 10px;
+			}
+
+			/* Style adjustments for button to align with the new layout */
+			button {
+				width: calc(100% - 40px);
+				margin: 10px;
+			}
+
+			/* Ensure the container width accommodates new elements */
+			#chatContainer {
+				padding-bottom: 10px;
+				/* Add some padding at the bottom */
+			}
+
+			.message.code {
+				background-color: #f5f5f5;
+				/* Light grey background */
+				color: #333;
+				/* Darker text for contrast */
+				font-family: monospace;
+				/* Monospace font for code-like appearance */
+				white-space: pre-wrap;
+				/* Allows text to wrap and preserves formatting */
+				word-wrap: break-word;
+				/* Allows long lines to break and wrap to the next line */
+				padding: 10px;
+				/* Padding inside the preformatted text block */
+				border-radius: 5px;
+				/* Rounded corners like other messages */
+			}
+		</style>
+	</head>
+
+	<body>
+
+		<div id="chatContainer">
+			<div id="chatHeader">ChatGPT</div>
+
+			<!-- Dropdown for Text or Code selection -->
+			<select id="typeSelection">
+				<option value="text">Text</option>
+				<option value="code">Code</option>
+			</select>
+
+			<!-- Dropdown for Indian Languages selection -->
+			<select id="languageSelection">
+				<option value="">Select Language</option>
+				<option value="Assamese">Assamese</option>
+				<option value="Bengali">Bengali</option>
+				<option value="Gujarati">Gujarati</option>
+				<option value="Hindi">Hindi</option>
+				<option value="Kannada">Kannada</option>
+				<option value="Kashmiri">Kashmiri</option>
+				<option value="Konkani">Konkani</option>
+				<option value="Malayalam">Malayalam</option>
+				<option value="Marathi">Marathi</option>
+				<option value="Nepali">Nepali</option>
+				<option value="Odia">Odia</option>
+				<option value="Punjabi">Punjabi</option>
+				<option value="Sanskrit">Sanskrit</option>
+				<option value="Sindhi">Sindhi</option>
+				<option value="Tamil">Tamil</option>
+				<option value="Telugu">Telugu</option>
+				<option value="Urdu">Urdu</option>
+
+				<!-- Add more Indian languages as needed -->
+			</select>
+			<div id="chatBody"></div>
+			<textarea id="prompt" placeholder="Type a message..." rows="3"></textarea>
+			<div class="vertical-center">
+				<button id="generateButton" onclick="generateText()">Generate Text</button>
+			</div>
+
+		</div>
+
+		<div id="progressOverlay">
+			<div>Thinking...</div>
+		</div>
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		<script>
+			$(document).ready(function() {
+				// Handle generate button click
+				$('#generateButton').click(function() {
+					var userInput = $("#prompt").val().trim();
+					if (userInput !== "") {
+						displayUserMessage(userInput); // Display the user message in the chatbox
+						generateText(userInput, false); // Generate text with the user input
+					}
+				});
+
+				// Handle changes in the type selection dropdown
+				$('#typeSelection').change(function() {
+					if ($(this).val() === 'code') {
+						$('#languageSelection').prop('disabled', true).val(''); // Reset and disable language selection
+					} else {
+						$('#languageSelection').prop('disabled', false);
+					}
+				});
+			});
+
+			function generateText(regenerate = false) {
+				var prompt = regenerate ? lastPrompt : $("#prompt").val(); // Use the last prompt if regenerating
+
+				// Append language description if applicable
+				if (!regenerate) {
+					var languageDescription = getLanguageDescription();
+					if (languageDescription !== "" && $('#typeSelection').val() === 'text') {
+						prompt += " " + languageDescription; // Append language description to the user's input
+					}
+					lastPrompt = prompt; // Update lastPrompt with the language description
+				}
+
+				// Display the user's message in the chat body
+				if (prompt.trim() !== "") {
+					$('#chatBody').append('<div class="messageContainer userMessage"><div class="message">' + escapeHtml(prompt) + '</div></div>');
+					$("#prompt").val(""); // Clear the user input field only for new prompts
+					$('#chatBody').scrollTop($('#chatBody')[0].scrollHeight); // Scroll to the bottom of the chat body
+
+					$('#progressOverlay').show(); // Show the progress overlay
+					  // how to get API key
+                                                                        // https://allfreestore.com/wp-content/uploads/2024/03/Get%20OpenAI%20API%20Key.mp4
+				var apiKey = 'your_api_key'; // Replace with your actual OpenAI API key
+					var apiUrl = 'https://api.openai.com/v1/chat/completions';
+					var requestBody = {
+						model: 'gpt-3.5-turbo',
+						messages: [{
+							role: 'user',
+							content: prompt
+						}],
+						temperature: 0.7
+					};
+
+					$.ajax({
+						type: 'POST',
+						url: apiUrl,
+						headers: {
+							'Content-Type': 'application/json',
+							'Authorization': 'Bearer ' + apiKey
+						},
+						data: JSON.stringify(requestBody),
+						success: function(response) {
+							$('#progressOverlay').hide(); // Hide the progress overlay
+							// Conditionally display the response based on the user selection
+							if ($('#typeSelection').val() === 'code') {
+								// Display the response as preformatted text for code, escaping HTML to show as plain text
+								$('#chatBody').append('<div class="messageContainer"><pre class="message code">' + escapeHtml(response.choices[0].message.content) + '</pre></div>');
+							} else {
+								// Use typewriter effect for non-code text
+								addTypewriterEffect(response.choices[0].message.content, 'chatBody');
+							}
+							$('#chatBody').scrollTop($('#chatBody')[0].scrollHeight); // Scroll to show the latest message
+						},
+						error: function(error) {
+							$('#progressOverlay').hide(); // Hide the progress overlay on error
+							console.error('Could not generate text:', error);
+						}
+					});
+				}
+			}
+
+			// Function to escape HTML characters
+			function escapeHtml(text) {
+				return text
+					.replace(/&/g, "&amp;")
+					.replace(/</g, "&lt;")
+					.replace(/>/g, "&gt;")
+					.replace(/"/g, "&quot;")
+					.replace(/'/g, "&#039;");
+			}
+
+
+			// Function to display the user's message in the chatbox
+			function displayUserMessage(message) {
+				var userMessageHtml = '<div class="messageContainer userMessage"><div class="message">' + message + '</div></div>';
+				$('#chatBody').append(userMessageHtml);
+				$("#prompt").val(''); // Clear the input field
+			}
+
+			// Function to get the language description based on the selected language
+			function getLanguageDescription() {
+				var selectedLanguage = $('#languageSelection').val();
+				var languageDescription = "";
+				switch (selectedLanguage) {
+					case "Assamese":
+						languageDescription = "in Assamese language";
+						break;
+					case "Bengali":
+						languageDescription = "in Bengali language";
+						break;
+					case "Gujarati":
+						languageDescription = "in Gujarati language";
+						break;
+					case "Hindi":
+						languageDescription = "in Hindi language";
+						break;
+					case "Kannada":
+						languageDescription = "in Kannada language";
+						break;
+					case "Kashmiri":
+						languageDescription = "in Kashmiri language";
+						break;
+					case "Konkani":
+						languageDescription = "in Konkani language";
+						break;
+					case "Malayalam":
+						languageDescription = "in Malayalam language";
+						break;
+					case "Marathi":
+						languageDescription = "in Marathi language";
+						break;
+					case "Nepali":
+						languageDescription = "in Nepali language";
+						break;
+					case "Odia":
+						languageDescription = "in Odia language";
+						break;
+					case "Punjabi":
+						languageDescription = "in Punjabi language";
+						break;
+					case "Sanskrit":
+						languageDescription = "in Sanskrit language";
+						break;
+					case "Sindhi":
+						languageDescription = "in Sindhi language";
+						break;
+					case "Tamil":
+						languageDescription = "in Tamil language";
+						break;
+					case "Telugu":
+						languageDescription = "in Telugu language";
+						break;
+					case "Urdu":
+						languageDescription = "in Urdu language";
+						break;
+					case "English":
+						languageDescription = "in English language";
+						break;
+						// Add more cases as needed
+				}
+
+				return languageDescription;
+			}
+
+
+			function addTypewriterEffect(text, elementId) {
+				var formattedText = formatResponseText(text);
+				var container = $('<div class="messageContainer"></div>').appendTo('#' + elementId);
+				var message = $('<div class="message formatted-text" style="background-color: #f5f5f5;"></div>').appendTo(container);
+
+				var i = 0;
+				var speed = 10; // Typing speed in milliseconds
+
+				function typeWriter() {
+					if (i < formattedText.length) {
+						var charToAdd = formattedText.charAt(i);
+						if (formattedText.substring(i).startsWith('<a href=') || formattedText.substring(i).startsWith('<br>') || formattedText.substring(i).startsWith('<strong>')) {
+							var tagEnd = formattedText.indexOf('>', i) + 1;
+							charToAdd = formattedText.substring(i, tagEnd);
+							i = tagEnd;
+						} else if (formattedText.charAt(i) === '<') {
+							var tagEnd = formattedText.indexOf('>', i) + 1;
+							charToAdd = formattedText.substring(i, tagEnd);
+							i = tagEnd - 1;
+						}
+						message.append(charToAdd);
+						i++;
+						setTimeout(typeWriter, speed);
+					} else {
+						var copyIcon = $('<div class="copyIcon">ðŸ“‹</div>').appendTo(container);
+						copyIcon.click(function() {
+							var textToCopy = message.text();
+							navigator.clipboard.writeText(textToCopy).then(function() {
+								alert('Text copied to clipboard!');
+							}, function(err) {
+								console.error('Could not copy text: ', err);
+							});
+						});
+
+						var regenerateIcon = $('<div class="regenerateIcon">&#x1F501;</div>').appendTo(container);
+						regenerateIcon.click(function() {
+							generateText(true); // Call generateText with regenerate flag set to true
+						});
+					}
+				}
+
+				typeWriter();
+			}
+
+			function formatResponseText(text) {
+				text = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+				text = text.replace(/^##\s?(.+)/gm, '<strong>$1</strong>');
+				text = text.replace(/^(\s*(?:-|\*|\d+\.)\s+.+)$/gm, '$1<br>');
+				return text;
+			}
+		</script>
+		<style>
+			.regenerateIcon,
+			.copyIcon {
+				cursor: pointer;
+				display: inline-block;
+				margin-left: 10px;
+				font-size: 20px;
+				/* Adjust size as needed */
+			}
+
+			.userMessage .message {
+				background-color: #e2f0cb;
+			}
+
+			#progressOverlay {
+				display: none;
+				/* Initially hidden */
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: rgba(0, 0, 0, 0.5);
+				z-index: 1000;
+			}
+
+			#progressOverlay > div {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				color: white;
+				font-size: 20px;
+			}
+		</style>
+		<div id="progressOverlay">
+			<div>Thinking...</div>
+		</div>
+
+	</body>
+
+</html>
